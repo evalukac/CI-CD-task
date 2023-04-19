@@ -1,0 +1,56 @@
+#%RAML 1.0
+title: DIY1_Accounts
+
+types:
+  accountType: !include DataTypes/accountType.raml
+  accountTypesType: !include DataTypes/accountTypesType.raml 
+
+/accounts:
+  get:
+    headers:
+      user_id:
+    queryParameters:
+      account_type:
+        type: accountTypesType
+        required: false
+      account_name:
+        required: false
+    responses:
+      200:
+        body:
+          application/json:
+            type: accountType []
+            examples:
+              output: !include Examples/accountExample.raml
+  post:
+    headers:
+      user_id:
+    body:
+      application/json:
+        type: accountType []
+        examples:
+          input: !include Examples/accountNoIDExample.raml
+    responses:
+      201:
+        body:
+          application/json:
+            example:
+              message: Accounts created
+  /{id}:
+    get:
+      headers:
+        user_id:
+      responses:
+        200:
+          body:
+            application/json:
+              type: accountType
+              examples:
+                output: !include Examples/oneAccountExample.raml
+        404:
+          body:
+            application/json:
+              example:
+                message: Account not found
+
+

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<flow name="getAccounts" doc:id="611fa2e3-95ad-46f3-a51e-202bc1ff4906" >
+		<set-variable value="#[attributes.queryParams.account_type]" doc:name="account_type" doc:id="9183b354-b389-458b-b88f-208003bbd828" variableName="account_type"/>
+		<set-variable value="#[attributes.queryParams.account_name]" doc:name="account_name" doc:id="ffbe7922-69fe-4e8b-a94d-820498f39b3d" variableName="account_name"/>
+		<choice doc:name="Choice" doc:id="2835238d-468c-40bf-8473-4695b3027aa7" >
+			<when expression="#[isEmpty(vars.account_type) and isEmpty(vars.account_name)]">
+				<db:select doc:name="Select" doc:id="8ca1ded7-b597-43ce-89e4-5f54b3b938ce" config-ref="Database_Config">
+			<db:sql><![CDATA[select * from flights_customers]]></db:sql>
+		</db:select>
+			</when>
+			<when expression="#[isEmpty(vars.account_type) and (not isEmpty(vars.account_name))]">
+				<db:select doc:name="Select" doc:id="f5c64d22-90f6-488d-9b46-90ba1c58718d" config-ref="Database_Config">
+					<db:sql ><![CDATA[select * from flights_customers where name = :name]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	name: vars.account_name
+}]]]></db:input-parameters>
+				</db:select>
+			</when>
+			<when expression="#[(not isEmpty(vars.account_type)) and isEmpty(vars.account_name)]">
+				<db:select doc:name="Select" doc:id="aea843bf-3a05-493b-9771-04358512cfe0" config-ref="Database_Config">
+					<db:sql ><![CDATA[select * from flights_customers where accountType = :accountType]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	accountType: vars.account_type
+}]]]></db:input-parameters>
+				</db:select>
+			</when>
+			<otherwise >
+				<db:select doc:name="Select" doc:id="d2a5af57-2963-44ef-b692-2cf998a48a9f" config-ref="Database_Config">
+					<db:sql ><![CDATA[select * from flights_customers where name = :name and accountType = :accountType]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	name: vars.account_name,
+	accountType: vars.account_type
+}]]]></db:input-parameters>
+				</db:select>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="9ba9ae64-eef5-46f5-9331-ac8123c2ca19" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	address: ((((payload01.street default "") ++ "," ++ (payload01.city default "")) ++ "," ++ (payload01.state default "")) ++ "," ++ (payload01.postal default "")) ++ "," ++ (payload01.country default ""),
+	airMiles: payload01.miles default 0,
+	name: payload01.name default "",
+	id: payload01.accountID as Number,
+	"type": payload01.accountType default "",
+	creationDate: payload01.creationDate as String
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="getAccountsByID" doc:id="71cdc7c0-497d-48a6-ab55-022ce1e4975f" >
+		<db:select doc:name="Select" doc:id="d8cd0aa5-d9e9-4bf8-b5f3-b9ea8d308d05" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from flights_customers where accountID = :id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	id: attributes.uriParams.id
+}]]]></db:input-parameters>
+		</db:select>
+		<validation:is-not-empty-collection doc:name="Is not empty collection" doc:id="c901a936-8ab6-4e95-8d56-6c46635d2909" />
+		<ee:transform doc:name="Transform Message" doc:id="aa0c4f3d-8fbc-4585-a830-a5a24839f971" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	accountID: payload01.accountID,
+	name: payload01.name,
+	street: payload01.street,
+	city: payload01.city,
+	state: payload01.state,
+	postal: payload01.postal,
+	country: payload01.country,
+	accountType: payload01.accountType,
+	creationDate: payload01.creationDate,
+	miles: payload01.miles
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler ref="flowError_Handler" />
+	</flow>
+</mule>
